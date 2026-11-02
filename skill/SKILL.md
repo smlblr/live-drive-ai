@@ -1,7 +1,7 @@
 ---
 name: live-drive-desktop
 description: Test the app this project builds by driving the user's live GNOME Wayland or macOS session (keyboard, pointer, screenshots) while they keep using the machine. Invoke with /live-drive-desktop.
-argument-hint: "[what to test] [out=DIR] [width=45%] [margin=20]"
+argument-hint: "[what to test] [out=DIR]"
 disable-model-invocation: true
 ---
 
@@ -11,13 +11,11 @@ You drive the user's real desktop: every key and click lands wherever focus is, 
 
 ## Parameters
 
-Read them from the arguments; otherwise use the default.
+Read it from the arguments; otherwise use the default.
 
 | Parameter | Default |
 |---|---|
 | Output directory for screenshots | Where the project keeps evidence (its CLAUDE.md or docs say; e.g. `verification-archive/<date>_<task>/`). If the project has no such place, ask the user. |
-| Test window width | at most 45 % of the screen width |
-| Right margin | the window's right edge 20 px left of the screen's right edge |
 
 ## Before you start
 
@@ -66,7 +64,7 @@ Steps: `focus:PID[,PID]`, `key:ctrl+s`, `down:alt`, `up:alt`, `type:text`, `slee
 
 - Open separate test instances (`--standalone` or the app's equivalent where it has one) and record each PID when you launch it; these are the PIDs for `focus:`. If the gate reports a different PID for the test window (single-instance apps hand the window to a running process), check in a `shot:` that the window is the test one before adding that PID.
   - macOS: `open -n -a App file` starts a new instance whose parent is launchd, not your shell, so it is outside your shell's process tree; take its PID right after with `pgrep -nx <process name>`, and give that PID itself to `focus:`. Electron apps need their own data directory to get a separate instance (VS Code: `--args --user-data-dir ~/.cache/<short>`; a long path breaks its socket).
-- Place each one at the configured width, right edge at the configured margin. Use the app's own geometry option if it has one, otherwise drag the title bar and the corner, measured from a screenshot (GNOME Wayland lets no client position itself).
+- Leave each window where the app opens it unless the test needs another size or position; then use the app's own geometry option if it has one, otherwise drag the title bar and the corner, measured from a screenshot (GNOME Wayland lets no client position itself).
 - Type into, click in and close only windows this test opened. The user may have their own windows of the same app, so close by PID (`kill PID`), never by name (`pkill app`).
 
 ## Ending
