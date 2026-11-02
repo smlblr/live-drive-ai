@@ -31,9 +31,20 @@ func exists(_ path: String) -> Bool { access(path, F_OK) == 0 }
 func touch(_ path: String) { FileManager.default.createFile(atPath: path, contents: nil) }
 func pause(_ seconds: Double) { usleep(useconds_t(seconds * 1_000_000)) }
 
+// The clock lets a pause, or a pause that seemed not to stop anything, be matched to what ran
+// then (Linux, 2026-11-02); live-drive.py strips it again where it compares lines.
+func stamp() -> String {
+    var now = time(nil)
+    var parts = tm()
+    localtime_r(&now, &parts)
+    var buffer = [Int8](repeating: 0, count: 16)
+    strftime(&buffer, buffer.count, "%H:%M:%S ", &parts)
+    return String(cString: buffer)
+}
+
 func log(_ line: String) {
     if let f = fopen(OUT, "a") {
-        fputs(line + "\n", f)
+        fputs(stamp() + line + "\n", f)
         fclose(f)
     }
 }
@@ -460,6 +471,10 @@ let PAUSED: [String: (String, String, String, String)] = [
 ]
 var pausedReason: String? = nil   // shown by the menu bar item
 var busy = false                  // a batch is running
+// Claude's tests mix batches with commands of its own in the gaps; falling back to "Bekliyor"
+// between batches showed "Sürüyor" for 12 % of a real Linux run (2026-11-02). Same 5 s as there.
+var busyUntil = Date.distantPast
+var driving: Bool { busy || Date() < busyUntil }
 var pendingReason: String? = nil
 var sentInput = false
 let theirsLock = NSLock()
@@ -676,7 +691,7 @@ func serveLoop() {
                 }
                 var status = "ok"
                 busy = true
-                defer { busy = false }
+                defer { busy = false; busyUntil = Date().addingTimeInterval(5) }
                 do {
                     for step in steps {
                         try gate()
@@ -729,8 +744,8 @@ final class Controller: NSObject {
     // the user took a missing pause for a missed one (Linux, 2026-11-02): say which it is.
     func refresh() {
         let reason = pausedReason ?? (exists(PAUSE) ? "pause" : nil)
-        let status = reason.map { PAUSED[$0]!.0 } ?? (busy ? "Sürüyor" : "Bekliyor")
-        let symbol = reason != nil ? "pause.circle" : busy ? "record.circle" : "clock"
+        let status = reason.map { PAUSED[$0]!.0 } ?? (driving ? "Sürüyor" : "Bekliyor")
+        let symbol = reason != nil ? "pause.circle" : driving ? "record.circle" : "clock"
         item.button?.image = NSImage(systemSymbolName: symbol, accessibilityDescription: status)
         item.button?.imagePosition = .imageLeading
         item.button?.title = " LiveDrive · \(status)"

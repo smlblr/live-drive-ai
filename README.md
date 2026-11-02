@@ -131,7 +131,9 @@ least 3 different slices within the last 2 seconds**, you are using the machine:
 
 A single short click does not stop the test; if the click moved focus to another window, the focus
 gate still stops the next input. If it pauses wrongly, the `user input: N events over X s, last Y s
-ago` line in `~/.cache/live-drive.out` shows what triggered it.
+ago` line in `~/.cache/live-drive.out` shows what triggered it. Every line of that file starts with the time (`HH:MM:SS`).
+
+**Top bar status:** "Sürüyor" (driving) shows while a batch runs and for 5 s after it; "Bekliyor" (waiting) means Claude has sent nothing for 5 s and touching the machine pauses nothing. Pause and stop act on live-drive's own steps: a command Claude runs itself between batches (opening a window through D-Bus, restarting the app) is not stopped by a pause, which is why SKILL.md tells Claude to keep such work in short batches and check for a pause before it.
 
 ## Updating
 

@@ -28,6 +28,11 @@ coordinate space of move/drag.
 import json, os, signal, struct, sys, time
 
 CACHE = os.path.expanduser('~/.cache')
+
+
+def body(line):
+    # Lines of live-drive.out start with the time (HH:MM:SS); the Swift helper writes it too.
+    return line[9:] if len(line) > 9 and line[2] == ':' and line[5] == ':' and line[8] == ' ' else line
 FIFO = os.path.join(CACHE, 'live-drive.fifo')
 OUT = os.path.join(CACHE, 'live-drive.out')
 STOP = os.path.join(CACHE, 'live-drive.stop')
@@ -142,7 +147,7 @@ def send(steps):
             f.seek(start)
             text = f.read()
         for line in text.splitlines():
-            if line.startswith(f'END {batch} '):
+            if body(line).startswith(f'END {batch} '):
                 print(text.rstrip())
                 sys.exit(0 if line.endswith(' ok') else 1)
         if not os.path.exists(FIFO):
@@ -201,7 +206,7 @@ def darwin(args):
         while proc.poll() is None:
             with open(OUT) as f:
                 f.seek(start)
-                if ready in f.read().splitlines():
+                if ready in [body(l) for l in f.read().splitlines()]:
                     print(ready, flush=True)
                     break
             time.sleep(0.1)
@@ -384,8 +389,10 @@ held_keys, held_buttons = set(), set()
 
 
 def log(line):
+    # The time prefix is what lets a pause or a missed pause be matched to what ran then
+    # (2026-11-02: the log had no clock, so a pause that "did not stop" could not be checked).
     with open(OUT, 'a') as f:
-        f.write(line + '\n')
+        f.write(time.strftime('%H:%M:%S ') + line + '\n')
 
 
 # ---- top-bar icon: macOS shows "● LiveDrive" in the menu bar. Here the same comes from
@@ -445,6 +452,11 @@ SNI_XML = """<node>
 </node>"""
 SNI_PATH, MENU_PATH = '/StatusNotifierItem', '/StatusNotifierItem/Menu'
 tray = {'state': None, 'busy': False, 'rev': 1, 'on': False}
+# Claude's tests mix send batches with commands of its own (opening a window over D-Bus,
+# restarting the app) in the gaps; a flag that fell back to Bekliyor between batches showed
+# Sürüyor for 12 % of a real run (2026-11-02). It stays on this long after the last batch.
+BUSY_GRACE = 5.0
+batch_end = {'t': 0.0, 'active': False}
 # Why the session waits: tray status, tray button, notice title, notice body.
 PAUSED = {
     'pause': ('Duraklatıldı', 'Sürdür', 'Test duraklatıldı', 'Sürdürmek için Ctrl+Alt+Shift+P'),
@@ -660,6 +672,8 @@ def log_theirs():
 
 def gate():
     pump()
+    if tray['busy'] and not batch_end['active'] and time.monotonic() > batch_end['t'] + BUSY_GRACE:
+        tray_set(busy=False)
     sample()                              # every 0.1 s while idle or sleeping: input between our events
     if state['closed'] or os.path.exists(STOP):
         stopped()
@@ -974,6 +988,7 @@ try:
                 raise SystemExit(0)
             status = 'ok'
             tray_set(busy=True)
+            batch_end['active'] = True
             try:
                 for step in req['steps']:
                     gate()
@@ -985,7 +1000,7 @@ try:
             except Exception as e:
                 status = f'error {e}'
                 release_all()
-            tray_set(busy=False)
+            batch_end.update(t=time.monotonic(), active=False)
             log(f'END {req["id"]} {status}')
 finally:
     release_all()

@@ -113,6 +113,17 @@ Eski adı `live-desktop-test`; 2026-11-01'de `live-drive-desktop` oldu.
   her dokunuşta duraklatmak reddedildi: batch'ler arasında kullanıcı sohbeti okuyup yazıyor, her
   mesajdan sonra kısayol isterdi ve korunacak bir girdi yoktu. Bunun yerine gösterge batch sırasında
   "Sürüyor", arada "Bekliyor" yazıyor.
+  - *Beş saniyelik gecikme ve saatli log (2026-11-02, Linux'ta ölçüldü, macOS'a aynı kod yazıldı,
+    Mac'te denenmedi).* Bir clipboard testinde (53 batch, ~18 dk) gösterge hesaplanan sürenin yalnızca
+    %12'sinde "Sürüyor" dedi: Claude testin büyük kısmını `send` dışında yürütüyordu (`coppy`
+    komutuyla pencere açıp kapatmak, `systemctl restart`, ekran kaydı betiği). Gösterge artık son
+    batch'ten 5 sn sonra "Bekliyor"a dönüyor. Duraklatma da yalnızca serve'ün adımlarını durduruyor; bu
+    iki platformda aynı (Swift'te `gate()` aynı yerde bakıyor), Mac'te yaşanmamasının nedeni kod değil,
+    o testlerin her şeyi `send` ile yapması. Kendi komutlarını da durduracak bir adım serve'e
+    keyfi komut çalıştırma yetkisi vermek olurdu; bunun yerine SKILL.md `~/.cache/live-drive.pause`
+    dosyasına bakmayı (`check` duraklatmayı yalnızca `warn` satırı olarak veriyor, son satır yine `all ok`) ve ekrana dokunan işi kısa batch'lerde tutmayı söylüyor (zorlama değil, uyum).
+    `live-drive.out` satırları `HH:MM:SS ` ile başlıyor, böylece bir duraklatma o sırada çalışanla
+    eşleştirilebiliyor; ayrıştıran kod (`send`, Mac'te READY beklemesi) saati atıyor.
 - *Hazır sinyali.* `live-drive.out` bütün oturumların ortak dosyası; reddedilen `serve` önceki
   oturumun `READY`'sini orada bırakıyor ve başka bir oturum onu kendi sandı. Satır artık sahibini
   taşıyor (`READY claude:<pid> serve <pid>`) ve `serve`'ün kendi çıktısına da yazılıyor. Asıl

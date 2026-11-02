@@ -37,6 +37,8 @@ Read it from the arguments; otherwise use the default.
 
    The lock covers only what goes through `send`. Launching or closing apps, D-Bus calls into the app (e.g. toggling its window), and changing its settings also change the screen the user sees. Do none of them before that first `send` succeeds.
 
+   Pause and stop act only on `send` steps. A pause the user presses does not stop a shell loop of your own that opens windows, restarts the app or records the screen, and the top bar does not count that as driving (it shows "Sürüyor" for 5 s after each batch, never for your own commands). So keep screen-affecting work inside `send` batches of a few seconds; where you must run your own command between batches, run it only while `[ ! -e ~/.cache/live-drive.pause ]` holds: that file is the pause, on both platforms (`check` shows it only as a `warn` line and still ends `all ok`). Never loop for minutes on your own commands; when the user pauses, stop and wait for them. On 2026-11-02 a test did this and went on after a pause (the loops were never part of the session).
+
    One session drives the screen at a time. If `serve` (or `send`) answers `another session is driving the screen`, a different Claude session holds it: tell the user which (the message names it) and stop. Do not retry in a loop, do not touch `~/.cache/live-drive.lock`, and never send to a session you did not start.
 
 ## Driving

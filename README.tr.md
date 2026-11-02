@@ -128,7 +128,9 @@ Zaman 0,1 sn'lik dilimlere bölünür; aynı dilime düşen girdiler tek sayıl�
 
 Tek kısa tıklama testi durdurmaz; tıklama odağı başka bir pencereye götürdüyse odak kapısı bir sonraki
 girdiyi yine durdurur. Yanlış duraksa `~/.cache/live-drive.out` içindeki
-`user input: N events over X s, last Y s ago` satırı neyin durdurduğunu gösterir.
+`user input: N events over X s, last Y s ago` satırı neyin durdurduğunu gösterir. Bu dosyadaki her satır saatle (`HH:MM:SS`) başlar.
+
+**Üst çubuk durumu:** "Sürüyor" bir batch çalışırken ve bittikten sonra 5 sn boyunca görünür; "Bekliyor", Claude 5 sn'dir bir şey göndermiyor, dokunman bir şeyi duraklatmaz demektir. Duraklatma ve durdurma live-drive'ın kendi adımlarına etki eder: Claude'un batch'ler arasında kendi çalıştırdığı komut (D-Bus ile pencere açmak, uygulamayı yeniden başlatmak) duraklatmayla durmaz; bu yüzden SKILL.md Claude'a bu tür işi kısa batch'lerde tutmasını ve önce duraklatma olup olmadığına bakmasını söylüyor.
 
 ## Güncelleme
 
