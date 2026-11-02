@@ -30,7 +30,8 @@ Küçük düzeltmeyi yap, davranışı değiştirme.
 2. `send move:500,500 sleep:0.3` gönder: menü çubuğu hemen "Sürüyor", **batch bittikten ~5 sn sonra** "Bekliyor" demeli. (Ekran görüntüsüyle ya da `read_page`'le ölç, süreyi sayıyla yaz.)
 3. `send` çıkış kodu 0 olmalı, çıktıda saatli satırlar görünmeli; yanlış bir adım (`send nope:1`) kodu ≠ 0 vermeli (`END <id> error ...` satırı saatli olsa da ayrıştırılıyor).
 4. ⌃⌥⇧P ile duraklat: menü "Duraklatıldı" göstermeli (gecikme bunu bastırmamalı), sürdürünce yine "Sürüyor"/"Bekliyor".
-5. `quit` ile bitir; `check` hâlâ `all granted` demeli.
+5. **Bekleme sırasında kullanıcı algılama** (`8f496bd`den sonraki commit): `send focus:<pid> sleep:8` gönder, 2–3 sn sonra fareyi yarım saniye boyunca gerçekten oynat: menü çubuğu bekleme bitmeden "Sen kullanıyorsun" demeli, ⌃⌥⇧P ile sürdürünce `sleep` kalan süreyi bitirmeli. Tek kısa tıklama duraklatmamalı. Eskiden yalnızca bir sonraki tuşta duraklıyordu (Swift: `sleepStep` içinde `yieldToUser()`).
+6. `quit` ile bitir; `check` hâlâ `all granted` demeli.
 
 ## Bitti ölçütü
 

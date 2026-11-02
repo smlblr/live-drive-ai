@@ -861,6 +861,9 @@ def sleep(seconds):
     end = time.monotonic() + seconds
     while time.monotonic() < end:
         gate()
+        # The decision used to be taken only before an input step, so a mouse moved during a wait
+        # was forgotten after 2 s and noticed at the next key, if at all (user, 2026-11-02).
+        yield_to_user()
         time.sleep(0.1)
 
 

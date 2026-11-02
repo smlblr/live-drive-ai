@@ -599,6 +599,9 @@ func sleepStep(_ seconds: Double) throws {
     let end = Date().addingTimeInterval(seconds)
     while Date() < end {
         try gate()
+        // Decided here too, not only before an input step: input during a wait was forgotten
+        // after 2 s and noticed at the next key, if at all (Linux, 2026-11-02).
+        try yieldToUser()
         pause(0.1)
     }
 }

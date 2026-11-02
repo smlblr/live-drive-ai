@@ -124,6 +124,12 @@ Eski adı `live-desktop-test`; 2026-11-01'de `live-drive-desktop` oldu.
     dosyasına bakmayı (`check` duraklatmayı yalnızca `warn` satırı olarak veriyor, son satır yine `all ok`) ve ekrana dokunan işi kısa batch'lerde tutmayı söylüyor (zorlama değil, uyum).
     `live-drive.out` satırları `HH:MM:SS ` ile başlıyor, böylece bir duraklatma o sırada çalışanla
     eşleştirilebiliyor; ayrıştıran kod (`send`, Mac'te READY beklemesi) saati atıyor.
+  - *Bekleme adımında da karar (2026-11-02, ortak denemede kullanıcı yakaladı).* "Kullanıyor mu"
+    kararı yalnızca girdi adımlarının başında veriliyordu; `sleep` yalnızca örnekliyordu. Bekleme
+    sırasında oynatılan fare 2 sn sonra unutuluyor, bir sonraki tuşa kadar duraklatma gelmiyordu
+    (ve kullanıcı "Sürüyor" yazısına bakarken hiçbir tepki görmüyordu). `sleep` artık her 0,1 sn'de
+    karar da veriyor (`yield_to_user` / Swift'te `yieldToUser`). Linux'ta sahte kullanıcıyla ölçüldü:
+    sürekli girdi bekleme sırasında 0,4 sn içinde duraklatıyor, kısa sarsıntı yok sayılıyor.
 - *Hazır sinyali.* `live-drive.out` bütün oturumların ortak dosyası; reddedilen `serve` önceki
   oturumun `READY`'sini orada bırakıyor ve başka bir oturum onu kendi sandı. Satır artık sahibini
   taşıyor (`READY claude:<pid> serve <pid>`) ve `serve`'ün kendi çıktısına da yazılıyor. Asıl
