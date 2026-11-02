@@ -90,11 +90,11 @@ Test edeceğin projenin klasöründe Claude Code'u aç ve yaz:
 /live-drive-desktop ayarlar ekranında koyu temaya geçişi test et
 ```
 
-İsteğe bağlı parametreler: `out=DİZİN` (ekran görüntülerinin yeri; proje bir yer tanımlamıyorsa Claude
-sorar), `width=45%` (test penceresinin genişliği), `margin=20` (sağ kenardan boşluk, piksel).
+İsteğe bağlı parametre: `out=DİZİN` (ekran görüntülerinin yeri; proje bir yer tanımlamıyorsa Claude
+sorar).
 
 Claude başlamadan önce ne test edeceğini, kaç adım süreceğini ve hangi pencereleri açacağını söyler.
-Sonra test penceresini ekranın sağına yerleştirir, adımları kısa batch'ler hâlinde gönderir ve arada
+Sonra adımları kısa batch'ler hâlinde gönderir ve arada
 ilerlemeyi yazar. Bitince "test bitti" der, ekran görüntülerinin yerini ve neyin geçip neyin kaldığını
 raporlar, açtığı pencereleri kapatır.
 

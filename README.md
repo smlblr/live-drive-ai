@@ -92,11 +92,10 @@ Open Claude Code in the folder of the project you want to test and type:
 /live-drive-desktop test switching to the dark theme on the settings screen
 ```
 
-Optional parameters: `out=DIR` (where screenshots go; Claude asks if the project defines no place),
-`width=45%` (width of the test window), `margin=20` (gap from the right screen edge, in pixels).
+Optional parameter: `out=DIR` (where screenshots go; Claude asks if the project defines no place).
 
 Before starting, Claude tells you what it will test, how many steps it takes and which windows it will
-open. It then places the test window on the right side of the screen, sends the steps in short
+open. It then sends the steps in short
 batches and reports progress in between. When done it says "test bitti" (*test finished*), where the
 screenshots are and what passed or failed, and closes the windows it opened.
 
