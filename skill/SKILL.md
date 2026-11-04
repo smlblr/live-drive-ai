@@ -23,8 +23,8 @@ Read it from the arguments; otherwise use the default.
    - Linux: run `/usr/bin/python3 -I ~/.claude/skills/live-drive-desktop/scripts/live-drive.py check`. It must end with `all ok`; a `MISS` line names what is missing and how to fix it, `warn` lines do not block. KDE and X11 are not supported yet; stop and say so.
    - macOS: run `/usr/bin/python3 -I ~/.claude/skills/live-drive-desktop/scripts/live-drive.py check`. It must end with `all granted`. If `~/Applications/LiveDrive.app` is missing, ask the user to run `install.sh` in their live-drive-ai checkout (it also creates the signing certificate); if a grant is missing, `check` opens the prompt and the user turns LiveDrive on in System Settings. Granting is the user's job, not yours.
 2. Plan the whole test as batches and tell the user, before the first input: what you will test, how many steps it has, which windows you will open, and how to stop it.
-   - Linux: the top-bar item shows "Live drive · Sürüyor" while a batch runs and "Live drive · Bekliyor" between batches, when touching the machine pauses nothing. Its menu → Durdur, the ■ on the orange indicator, or Ctrl+Alt+Shift+S stops; the same menu's Duraklat/Sürdür or Ctrl+Alt+Shift+P pauses and resumes (the icon then shows ⏸). A notice stays on screen while paused, and stop and resume show a short one.
-   - macOS: "● LiveDrive" in the menu bar → Durdur, or ⌃⌥⇧S stops; ⌃⌥⇧P pauses and resumes (the item then shows ⏸).
+   - Linux: the top-bar item shows "Live drive · Driving" while a batch runs and "Live drive · Idle" between batches, when touching the machine pauses nothing. Its menu → Stop, the ■ on the orange indicator, or Ctrl+Alt+Shift+S stops; the same menu's Pause/Resume or Ctrl+Alt+Shift+P pauses and resumes (the icon then shows ⏸). A notice stays on screen while paused, and stop and resume show a short one.
+   - macOS: "● LiveDrive" in the menu bar → Stop, or ⌃⌥⇧S stops; ⌃⌥⇧P pauses and resumes (the item then shows ⏸).
 3. Start one session for the whole test, with the Bash tool's `run_in_background`:
 
    ```bash
@@ -37,7 +37,7 @@ Read it from the arguments; otherwise use the default.
 
    The lock covers only what goes through `send`. Launching or closing apps, D-Bus calls into the app (e.g. toggling its window), and changing its settings also change the screen the user sees. Do none of them before that first `send` succeeds.
 
-   Pause and stop act only on `send` steps. A pause the user presses does not stop a shell loop of your own that opens windows, restarts the app or records the screen, and the top bar does not count that as driving (it shows "Sürüyor" for 5 s after each batch, never for your own commands). So keep screen-affecting work inside `send` batches of a few seconds; where you must run your own command between batches, run it only while `[ ! -e ~/.cache/live-drive.pause ]` holds: that file is the pause, on both platforms (`check` shows it only as a `warn` line and still ends `all ok`). Never loop for minutes on your own commands; when the user pauses, stop and wait for them. On 2026-11-02 a test did this and went on after a pause (the loops were never part of the session).
+   Pause and stop act only on `send` steps. A pause the user presses does not stop a shell loop of your own that opens windows, restarts the app or records the screen, and the top bar does not count that as driving (it shows "Driving" for 5 s after each batch, never for your own commands). So keep screen-affecting work inside `send` batches of a few seconds; where you must run your own command between batches, run it only while `[ ! -e ~/.cache/live-drive.pause ]` holds: that file is the pause, on both platforms (`check` shows it only as a `warn` line and still ends `all ok`). Never loop for minutes on your own commands; when the user pauses, stop and wait for them. On 2026-11-02 a test did this and went on after a pause (the loops were never part of the session).
 
    One session drives the screen at a time. If `serve` (or `send`) answers `another session is driving the screen`, a different Claude session holds it: tell the user which (the message names it) and stop. Do not retry in a loop, do not touch `~/.cache/live-drive.lock`, and never send to a session you did not start.
 
@@ -58,9 +58,9 @@ Steps: `focus:PID[,PID]`, `key:ctrl+s`, `down:alt`, `up:alt`, `type:text`, `slee
 - **Send `focus:PID` before the first input, with the PIDs of the test windows.** From then on every `key`, `type`, `click`, `dclick`, `scroll` and `drag` checks the active window first, and clicks check it again after; if it belongs to another process, the batch stops and reports that window. On 2026-10-20 a batch typed `exit` + Return into the Claude chat because focus had moved; this gate is the fix. When it stops a batch, bring the test window back to the front and resend; do not widen `focus:`. `focus:any` turns off the test-app match: use it only for an app that exposes no accessibility tree (the gate then reports "focus unknown"), and confirm focus with a `shot:` before every input batch instead. The chat's own app is refused even under `focus:any`.
   - Linux: keys go to whatever window is in front, not to a process, so a long `type:` or `drag` checks focus again every 0.2 s and stops; a window that appears mid-step can still get one or two characters (1 measured, 2026-11-02). Keep `type:` text short when other windows may open.
 - **Measure before you point.** Take a fresh `shot:` and read the target window's bounds from it before any click or drag. Never reuse coordinates from an earlier batch or run: a relaunched editor reopened at a different size and the drags landed on another window. `shot:NAME` logs the frame size in `live-drive.out`; that is also the coordinate space of `move` and `drag` (on macOS: points of the main display, e.g. 1470x956 on a Retina 2940x1912).
-- **The user comes first.** "Using" means keyboard or mouse input in at least three 0.1 s slices within 2 s; a single burst (one click, a bumped mouse) does not count. If they are using it at the session's first input, it waits with "Claude ekranı sürmek istiyor"; if they start during the test, it pauses with "Sen kullanıyorsun" and logs the evidence (`user input: N events over X s`) in `live-drive.out`. Either way it goes on only when they press Ctrl+Alt+Shift+P (macOS: ⌃⌥⇧P), or Başlat/Sürdür in the top-bar (menu-bar) menu, then continues the batch where it stopped. A `drag` they interrupt is released and fails; redo it after they resume.
+- **The user comes first.** "Using" means keyboard or mouse input in at least three 0.1 s slices within 2 s; a single burst (one click, a bumped mouse) does not count. If they are using it at the session's first input, it waits with "Claude wants to drive the screen"; if they start during the test, it pauses with "You're using it" and logs the evidence (`user input: N events over X s`) in `live-drive.out`. Either way it goes on only when they press Ctrl+Alt+Shift+P (macOS: ⌃⌥⇧P), or Start/Resume in the top-bar (menu-bar) menu, then continues the batch where it stopped. A `drag` they interrupt is released and fails; redo it after they resume.
 - **Keep input batches to a few seconds.** Waits go in `sleep:N` steps, which the stop and pause checks interrupt every 0.1 s; never use a shell `sleep` between batches as the wait.
-- **Report progress between batches:** "test devam ediyor, N adım kaldı" (exact if known, otherwise an estimate marked as such).
+- **Report progress between batches**, in the user's language: that the test is running and how many steps are left (exact if known, otherwise an estimate marked as such).
 
 ## Windows
 
@@ -72,7 +72,7 @@ Steps: `focus:PID[,PID]`, `key:ctrl+s`, `down:alt`, `up:alt`, `type:text`, `slee
 ## Ending
 
 1. `send quit` (or `.../live-drive.py quit`), then close every PID the test opened and confirm they are gone.
-2. Say "test bitti", where the screenshots are, and what passed or failed.
+2. Tell the user, in their language, that the test is finished, where the screenshots are, and what passed or failed.
 
 ## Gotchas
 

@@ -1,17 +1,17 @@
 #!/bin/bash
-# LiveDrive.app'i derler, imzalar ve ~/Applications'a koyar (live-drive-desktop, macOS).
-# Normalde install.sh çağırır; imza sertifikasını da o oluşturur.
+# Builds and signs LiveDrive.app and puts it in ~/Applications (live-drive-desktop, macOS).
+# install.sh normally calls it; it also creates the signing certificate.
 #
-#   build.sh            kaynak değiştiyse derler; değişmediyse dokunmaz
-#   build.sh --force    yine de derler
-#   build.sh --adhoc    sertifikasız, geçici imza (her derlemede iki izin yeniden verilir)
+#   build.sh            builds when the source changed; otherwise leaves the app alone
+#   build.sh --force    builds anyway
+#   build.sh --adhoc    ad-hoc signature, no certificate (both permissions are granted again after every build)
 #
-# Değişmeyen kaynağı yeniden derlememe sebebi TCC: izin paket kimliğine VE imzaya bağlı.
-# Geçici imzada imza = cdhash, yani her derleme izinleri düşürür. Kendinden imzalı sertifikada
-# gereksinim sertifikanın parmak izi; izin yeniden derlemeden sonra kalıyor (docs/decisions.md).
-# Sertifika adı LIVEDRIVE_SIGN_ID ile değiştirilebilir.
+# Unchanged source is not rebuilt because of TCC: a grant is tied to the bundle id AND the signature.
+# An ad-hoc signature is the cdhash, so every build drops the grants. With a self-signed certificate
+# the requirement is the certificate's fingerprint and grants survive a rebuild (docs/decisions.md).
+# LIVEDRIVE_SIGN_ID changes the certificate name.
 #
-# macOS /bin/bash 3.2 ile çalışır: bash 4+ sözdizimi yok.
+# macOS runs this with /bin/bash 3.2: no bash 4+ syntax.
 
 SRC="$(cd "$(dirname "$0")" && pwd)"
 APP="$HOME/Applications/LiveDrive.app"
@@ -25,28 +25,28 @@ for a in "$@"; do
   case "$a" in
     --force) force=1 ;;
     --adhoc) adhoc=1 ;;
-    *) echo "bilinmeyen seçenek: $a" >&2; exit 2 ;;
+    *) echo "unknown option: $a" >&2; exit 2 ;;
   esac
 done
 
-[ "$(uname -s)" = Darwin ] || { echo "LiveDrive yalnızca macOS'ta" >&2; exit 1; }
-command -v swiftc >/dev/null || { echo "swiftc yok: xcode-select --install" >&2; exit 1; }
+[ "$(uname -s)" = Darwin ] || { echo "LiveDrive is macOS only" >&2; exit 1; }
+command -v swiftc >/dev/null || { echo "no swiftc: xcode-select --install" >&2; exit 1; }
 
-# -v yok: betikle oluşturulan sertifika "güvenilir" işaretli değil (CSSMERR_TP_NOT_TRUSTED),
-# -v onu listelemiyor, ama codesign onunla imzalıyor.
+# No -v: the certificate install.sh creates is not marked trusted (CSSMERR_TP_NOT_TRUSTED),
+# so -v does not list it, but codesign signs with it.
 if [ "$adhoc" = 1 ]; then
   SIGN_ID="-"
 elif ! security find-identity -p codesigning | grep -q "\"$SIGN_ID\""; then
-  echo "\"$SIGN_ID\" imza kimliği yok (security find-identity -p codesigning)." >&2
-  echo "install.sh sertifikayı oluşturur; ya da --adhoc ile derle." >&2
+  echo "no \"$SIGN_ID\" signing identity (security find-identity -p codesigning)." >&2
+  echo "install.sh creates the certificate; or build with --adhoc." >&2
   exit 1
 fi
 
-# Damga: kaynak + imza kimliği. İmzalı paketin içine yazılamaz (imzayı bozar), bu yüzden dışarıda.
+# Stamp: source + signing identity. It lives outside the bundle: writing into a signed bundle breaks the signature.
 sum="$(cat "$SRC/LiveDrive.swift" "$SRC/icon.swift" "$SRC/Info.plist" "$SRC/build.sh" | shasum -a 256 | cut -d' ' -f1)-$SIGN_ID"
 if [ "$force" = 0 ] && [ -f "$STAMP" ] && [ "$(cat "$STAMP")" = "$sum" ] \
    && codesign --verify "$APP" 2>/dev/null; then
-  echo "LiveDrive.app güncel: $APP"
+  echo "LiveDrive.app is up to date: $APP"
   exit 0
 fi
 
@@ -56,9 +56,9 @@ mkdir -p "$tmp/LiveDrive.app/Contents/MacOS" "$tmp/LiveDrive.app/Contents/Resour
 cp "$SRC/Info.plist" "$tmp/LiveDrive.app/Contents/Info.plist"
 swift "$SRC/icon.swift" "$tmp/LiveDrive.iconset" \
   && iconutil -c icns -o "$tmp/LiveDrive.app/Contents/Resources/LiveDrive.icns" "$tmp/LiveDrive.iconset" \
-  || echo "ikon üretilemedi; LiveDrive.app genel ikonla kuruluyor" >&2
-# Swift 5 dil kipi: global durum (adım iş parçacığı ↔ ana iş parçacığı) tek NSLock ile korunuyor;
-# Swift 6'nın katı eşzamanlılık denetimi bunu derleme hatası sayardı.
+  || echo "could not draw the icon; LiveDrive.app gets the generic one" >&2
+# Swift 5 language mode: global state (step thread ↔ main thread) is guarded by one NSLock;
+# Swift 6's strict concurrency checking would reject it at compile time.
 swiftc -O -swift-version 5 -target "$(uname -m)-apple-macos14.0" \
   -framework AppKit -framework Carbon -framework ScreenCaptureKit \
   -o "$tmp/LiveDrive.app/Contents/MacOS/LiveDrive" "$SRC/LiveDrive.swift" || exit 1
@@ -68,4 +68,4 @@ mkdir -p "$HOME/Applications" "$HOME/.cache"
 rm -rf "$APP"
 mv "$tmp/LiveDrive.app" "$APP"
 echo "$sum" > "$STAMP"
-echo "LiveDrive.app kuruldu: $APP (imza: $SIGN_ID)"
+echo "LiveDrive.app installed: $APP (signed: $SIGN_ID)"

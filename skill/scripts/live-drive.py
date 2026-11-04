@@ -270,7 +270,7 @@ def linux_check():
     item(owned('org.gnome.Mutter.RemoteDesktop'), 'Mutter RemoteDesktop on D-Bus', 'not GNOME Shell?')
     item(owned('org.freedesktop.Notifications'), 'notifications (pause/stop notices)',
          'pause and stop will work without a notice', warn=True)
-    item(owned('org.kde.StatusNotifierWatcher'), 'top-bar icon (Durdur/Duraklat menu)',
+    item(owned('org.kde.StatusNotifierWatcher'), 'top-bar icon (Stop/Pause menu)',
          'no StatusNotifierWatcher; enable the ubuntu-appindicators extension', warn=True)
     desk = Atspi.get_desktop(0)
     item(desk is not None and desk.get_child_count() > 0, 'AT-SPI sees applications',
@@ -453,17 +453,17 @@ SNI_XML = """<node>
 SNI_PATH, MENU_PATH = '/StatusNotifierItem', '/StatusNotifierItem/Menu'
 tray = {'state': None, 'busy': False, 'rev': 1, 'on': False}
 # Claude's tests mix send batches with commands of its own (opening a window over D-Bus,
-# restarting the app) in the gaps; a flag that fell back to Bekliyor between batches showed
-# Sürüyor for 12 % of a real run (2026-11-02). It stays on this long after the last batch.
+# restarting the app) in the gaps; a flag that fell back to Idle between batches showed
+# Driving for 12 % of a real run (2026-11-02). It stays on this long after the last batch.
 BUSY_GRACE = 5.0
 batch_end = {'t': 0.0, 'active': False}
 # Why the session waits: tray status, tray button, notice title, notice body.
 PAUSED = {
-    'pause': ('Duraklatıldı', 'Sürdür', 'Test duraklatıldı', 'Sürdürmek için Ctrl+Alt+Shift+P'),
-    'start': ('Onayını bekliyor', 'Başlat', 'Claude ekranı sürmek istiyor',
-              'Ekranı kullanıyordun. Hazır olunca başlatmak için Ctrl+Alt+Shift+P'),
-    'user': ('Sen kullanıyorsun', 'Sürdür', 'Sen kullanıyorsun, test duraklatıldı',
-             'Hazır olunca sürdürmek için Ctrl+Alt+Shift+P'),
+    'pause': ('Paused', 'Resume', 'Test paused', 'Press Ctrl+Alt+Shift+P to resume'),
+    'start': ('Waiting for you', 'Start', 'Claude wants to drive the screen',
+              'You were using the screen. Press Ctrl+Alt+Shift+P when you are ready to start'),
+    'user': ("You're using it", 'Resume', "You're using the machine, test paused",
+             'Press Ctrl+Alt+Shift+P when you are ready to resume'),
 }
 
 
@@ -472,7 +472,7 @@ def tray_status():
         return PAUSED[tray['state']][0]
     # An open session that sends nothing while Claude thinks looked like it was driving, so
     # the user took a missing pause for a missed one (2026-11-02). Touching it then is safe.
-    return 'Sürüyor' if tray['busy'] else 'Bekliyor'
+    return 'Driving' if tray['busy'] else 'Idle'
 
 
 def tray_items():
@@ -482,8 +482,8 @@ def tray_items():
         1: {'label': GLib.Variant('s', tray_status()),
             'enabled': GLib.Variant('b', False)},
         2: {'type': GLib.Variant('s', 'separator')},
-        3: {'label': GLib.Variant('s', (PAUSED[st][1] if st else 'Duraklat') + '  (Ctrl+Alt+Shift+P)')},
-        4: {'label': GLib.Variant('s', 'Durdur  (Ctrl+Alt+Shift+S)')},
+        3: {'label': GLib.Variant('s', (PAUSED[st][1] if st else 'Pause') + '  (Ctrl+Alt+Shift+P)')},
+        4: {'label': GLib.Variant('s', 'Stop  (Ctrl+Alt+Shift+S)')},
     }
 
 
@@ -613,7 +613,7 @@ def unnotify():
 
 def stopped():
     if os.path.exists(STOP):
-        notify('Test durduruldu', icon='media-playback-stop-symbolic')
+        notify('Test stopped', icon='media-playback-stop-symbolic')
     raise SystemExit('stopped by user')
 
 
@@ -693,7 +693,7 @@ def gate():
             stopped()
     unnotify()
     tray_paused(None)
-    notify('Test sürdürüldü')
+    notify('Test resumed')
     log('resumed')
     # Pressing the shortcut (or the menu) is input too; do not take it for the user again.
     synthetic['grace'] = time.monotonic() + 1.0

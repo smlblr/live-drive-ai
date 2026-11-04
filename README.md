@@ -12,9 +12,6 @@ touch the keyboard or mouse, the test pauses and waits for your go-ahead.
 - **Linux, GNOME Wayland** — uses GNOME's own remote desktop interface (Mutter RemoteDesktop/ScreenCast
   over D-Bus); nothing to build. KDE and X11 are not supported.
 
-The menus and notifications of the helper are in Turkish; this README gives the English meaning next
-to each label.
-
 ## Safety measures
 
 A tool that sends real input can do damage if it types into the wrong window. So:
@@ -23,7 +20,7 @@ A tool that sends real input can do damage if it types into the wrong window. So
   test app Claude opened. If not, the batch stops and reports the window it found. Input never goes to
   Claude's own chat window.
 - **You come first.** If you start using the keyboard or mouse during a test, the test pauses
-  ("Sen kullanıyorsun", *you are using it*) and waits until you resume it with the shortcut. A single
+  ("You're using it") and waits until you resume it with the shortcut. A single
   click or a bumped mouse does not count; input repeated over a few short moments does.
 - **One driver.** Only one Claude session can drive the screen at a time; a second one is refused.
 - **You can stop it at any time** (shortcuts or menu below).
@@ -96,22 +93,20 @@ Optional parameter: `out=DIR` (where screenshots go; Claude asks if the project 
 
 Before starting, Claude tells you what it will test, how many steps it takes and which windows it will
 open. It then sends the steps in short
-batches and reports progress in between. When done it says "test bitti" (*test finished*), where the
+batches and reports progress in between. When done it says the test is finished, where the
 screenshots are and what passed or failed, and closes the windows it opened.
 
 ### Stopping and pausing
 
 | | macOS | Linux |
 |---|---|---|
-| Stop | ⌃⌥⇧S or menu bar → LiveDrive → Durdur (*Stop*) | Ctrl+Alt+Shift+S, top-bar menu → Durdur, or ■ on the orange indicator |
-| Pause / resume | ⌃⌥⇧P or menu → Duraklat/Sürdür (*Pause/Resume*) | Ctrl+Alt+Shift+P or the top-bar menu |
+| Stop | ⌃⌥⇧S or menu bar → LiveDrive → Stop | Ctrl+Alt+Shift+S, top-bar menu → Stop, or ■ on the orange indicator |
+| Pause / resume | ⌃⌥⇧P or menu → Pause/Resume | Ctrl+Alt+Shift+P or the top-bar menu |
 
-The menu label shows the state: **Sürüyor** (*driving*: Claude is sending input right now),
-**Bekliyor** (*waiting*: between batches; touching the machine stops nothing), **Duraklatıldı**
-(*paused*) or **Sen kullanıyorsun** (*you are using it*) — ⏸, waiting for you to resume. If you are
-using the machine when a test starts, it shows **Onayını bekliyor** (*waiting for your approval*), a
-"Claude ekranı sürmek istiyor" (*Claude wants to drive the screen*) notification appears, and it waits
-for Başlat (*Start*) in the menu or the resume shortcut.
+The menu label shows the state: **Driving** (Claude is sending input right now), **Idle** (between
+batches; touching the machine stops nothing), **Paused** or **You're using it** (⏸, waiting for you to
+resume). If you are using the machine when a test starts, it shows **Waiting for you**, a "Claude wants
+to drive the screen" notification appears, and it waits for Start in the menu or the resume shortcut.
 
 ### How it notices you
 
@@ -133,7 +128,7 @@ A single short click does not stop the test; if the click moved focus to another
 gate still stops the next input. If it pauses wrongly, the `user input: N events over X s, last Y s
 ago` line in `~/.cache/live-drive.out` shows what triggered it. Every line of that file starts with the time (`HH:MM:SS`).
 
-**Top bar status:** "Sürüyor" (driving) shows while a batch runs and for 5 s after it; "Bekliyor" (waiting) means Claude has sent nothing for 5 s and touching the machine pauses nothing. Pause and stop act on live-drive's own steps: a command Claude runs itself between batches (opening a window through D-Bus, restarting the app) is not stopped by a pause, which is why SKILL.md tells Claude to keep such work in short batches and check for a pause before it.
+**Top bar status:** "Driving" shows while a batch runs and for 5 s after it; "Idle" means Claude has sent nothing for 5 s and touching the machine pauses nothing. Pause and stop act on live-drive's own steps: a command Claude runs itself between batches (opening a window through D-Bus, restarting the app) is not stopped by a pause, which is why SKILL.md tells Claude to keep such work in short batches and check for a pause before it.
 
 ## Updating
 

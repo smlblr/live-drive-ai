@@ -111,7 +111,7 @@ func ancestors(_ pid: pid_t) -> Set<pid_t> {
     return seen
 }
 
-// ---- focus gate (docs/decisions.md, "Odak kapısı kodda")
+// ---- focus gate (docs/decisions.md, "The focus gate is in code")
 
 struct Win: CustomStringConvertible {
     let pid: pid_t, app: String, title: String
@@ -459,20 +459,20 @@ func shot(_ name: String) throws {
     log("shot \(path) \(image.width)x\(image.height)")
 }
 
-// ---- user priority (docs/decisions.md, live-drive-desktop: "Tek sürücü ve kullanıcı önceliği")
+// ---- user priority (docs/decisions.md, "One driver and user priority")
 
 // Why the session waits: menu status, menu button, notice title, notice body (as on Linux).
 let PAUSED: [String: (String, String, String, String)] = [
-    "pause": ("Duraklatıldı", "Sürdür", "Test duraklatıldı", "Sürdürmek için ⌃⌥⇧P"),
-    "start": ("Onayını bekliyor", "Başlat", "Claude ekranı sürmek istiyor",
-              "Ekranı kullanıyordun. Hazır olunca başlatmak için ⌃⌥⇧P"),
-    "user": ("Sen kullanıyorsun", "Sürdür", "Sen kullanıyorsun, test duraklatıldı",
-             "Hazır olunca sürdürmek için ⌃⌥⇧P"),
+    "pause": ("Paused", "Resume", "Test paused", "Press ⌃⌥⇧P to resume"),
+    "start": ("Waiting for you", "Start", "Claude wants to drive the screen",
+              "You were using the screen. Press ⌃⌥⇧P when you are ready to start"),
+    "user": ("You're using it", "Resume", "You're using the machine, test paused",
+             "Press ⌃⌥⇧P when you are ready to resume"),
 ]
 var pausedReason: String? = nil   // shown by the menu bar item
 var busy = false                  // a batch is running
-// Claude's tests mix batches with commands of its own in the gaps; falling back to "Bekliyor"
-// between batches showed "Sürüyor" for 12 % of a real Linux run (2026-11-02). Same 5 s as there.
+// Claude's tests mix batches with commands of its own in the gaps; falling back to "Idle"
+// between batches showed "Driving" for 12 % of a real Linux run (2026-11-02). Same 5 s as there.
 var busyUntil = Date.distantPast
 var driving: Bool { busy || Date() < busyUntil }
 var pendingReason: String? = nil
@@ -589,7 +589,7 @@ func gate() throws {
         if exists(STOP) { pausedReason = nil; throw StepError.stopped("stopped by user") }
     }
     pausedReason = nil
-    notify("Test sürdürüldü", "")
+    notify("Test resumed", "")
     log("resumed")
     // Pressing the shortcut (or the menu) is input too; do not take it for the user again.
     theirsLock.lock(); grace = uptime() + 1.0; theirs.removeAll(); theirsLock.unlock()
@@ -731,7 +731,7 @@ final class Controller: NSObject {
         let menu = NSMenu()
         menu.autoenablesItems = false
         statusLine.isEnabled = false
-        let stop = NSMenuItem(title: "Durdur  ⌃⌥⇧S", action: #selector(stopSession), keyEquivalent: "")
+        let stop = NSMenuItem(title: "Stop  ⌃⌥⇧S", action: #selector(stopSession), keyEquivalent: "")
         stop.target = self
         pauseItem.target = self
         menu.addItem(statusLine)
@@ -747,13 +747,13 @@ final class Controller: NSObject {
     // the user took a missing pause for a missed one (Linux, 2026-11-02): say which it is.
     func refresh() {
         let reason = pausedReason ?? (exists(PAUSE) ? "pause" : nil)
-        let status = reason.map { PAUSED[$0]!.0 } ?? (driving ? "Sürüyor" : "Bekliyor")
+        let status = reason.map { PAUSED[$0]!.0 } ?? (driving ? "Driving" : "Idle")
         let symbol = reason != nil ? "pause.circle" : driving ? "record.circle" : "clock"
         item.button?.image = NSImage(systemSymbolName: symbol, accessibilityDescription: status)
         item.button?.imagePosition = .imageLeading
         item.button?.title = " LiveDrive · \(status)"
         statusLine.title = status
-        pauseItem.title = (reason.map { PAUSED[$0]!.1 } ?? "Duraklat") + "  ⌃⌥⇧P"
+        pauseItem.title = (reason.map { PAUSED[$0]!.1 } ?? "Pause") + "  ⌃⌥⇧P"
     }
 
     @objc func stopSession() { touch(STOP) }

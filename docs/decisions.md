@@ -1,206 +1,221 @@
-# Kararlar
+# Decisions
 
-Bir şeyi değiştirmeden önce burada gerekçesine bak. Tarihli maddeler yaşanmış bir olaya ya da
-ölçüme dayanıyor; ölçmeden geri alma.
+Read the reason here before changing something. Dated items rest on an incident or a measurement;
+do not undo them without measuring.
 
-## Dağıtım
+## Distribution
 
-### Tek komutla kurulum: `install.sh` (2026-11-02)
+### One-command install: `install.sh` (2026-11-02)
 
-Skill bağı, imza sertifikası, derleme ve izin kuralı tek betikte; elle kalan yalnızca macOS izinlerinin
-anahtarını açmak. Elle yapılan her adım unutulabilir ve test ancak yarıda fark eder.
+The skill link, the signing certificate, the build and the permission rule are in one script; the only
+manual step left is turning on the macOS permission switches. Every manual step can be forgotten, and a
+test only notices halfway through.
 
-- **Skill symlink'le bağlanıyor, kopyalanmıyor:** `git pull` + `./install.sh` güncellemenin tamamı.
-  `SKILL.md`'deki yollar (`~/.claude/skills/live-drive-desktop/...`) bu sayede değişmedi.
-- **Claude Code eklentisi (plugin) değil:** eklentinin dizini sürüme göre değişiyor; Bash izin kuralı
-  ve SKILL.md'deki sabit yol her güncellemede kırılırdı. LiveDrive.app'in derlenmesi de yine ayrı
-  bir betik isterdi.
-- **Var olan bir symlink değiştiriliyor, gerçek dizin değil:** symlink'i kaldırmak bir şey silmez,
-  dizin ise birinin elle koyduğu kopya olabilir.
+- **The skill is symlinked, not copied:** `git pull` + `./install.sh` is the whole update. This is why
+  the paths in `SKILL.md` (`~/.claude/skills/live-drive-desktop/...`) never changed.
+- **Not a Claude Code plugin:** a plugin's directory changes with its version; the Bash permission rule
+  and the fixed path in SKILL.md would break on every update. Building LiveDrive.app would still need
+  a separate script.
+- **An existing symlink is replaced, a real directory is not:** removing a symlink deletes nothing,
+  while a directory may be a copy someone put there by hand.
 
-### İzin kuralını `install.sh` ekliyor, birleştirerek (2026-11-02)
+### `install.sh` adds the permission rule, by merging (2026-11-02)
 
-`Bash(/usr/bin/python3 -I <ev>/.claude/skills/live-drive-desktop/scripts/live-drive.py:*)`. Kural
-yoksa her `send` onay ister ve test akmaz. `~/.claude/settings.json` okunup listeye ekleniyor, öteki
-anahtarlara dokunulmuyor; dosya symlink'se ya da okunamıyorsa yazılmıyor, kural ekrana basılıyor
-(symlink'in arkası başka bir reponun dosyası olabilir). `--no-settings` bu adımı atlıyor.
+`Bash(/usr/bin/python3 -I <home>/.claude/skills/live-drive-desktop/scripts/live-drive.py:*)`. Without
+the rule every `send` asks for approval and the test does not flow. `~/.claude/settings.json` is read
+and the rule appended to the list; other keys are left alone. If the file is a symlink or cannot be
+read, nothing is written and the rule is printed instead (the file behind a symlink may belong to
+another repository). `--no-settings` skips this step.
 
-### İmza sertifikası betikle, "güvenilir" işaretlenmeden (2026-11-02, ölçüldü)
+### Signing certificate from a script, not marked trusted (2026-11-02, measured)
 
-TCC izni paket kimliğine ve imza gereksinimine bağlı. Geçici imzada gereksinim cdhash: her yeniden
-derleme iki izni düşürür. Kendinden imzalı sertifikada gereksinim
-`identifier "..." and certificate leaf = H"<parmak izi>"`, yani derlemeden derlemeye aynı.
+A TCC grant is tied to the bundle id and the signature's designated requirement. With ad-hoc signing
+the requirement is the cdhash: every rebuild drops both grants. With a self-signed certificate the
+requirement is `identifier "..." and certificate leaf = H"<fingerprint>"`, the same from build to build.
 
-Sertifikayı Anahtar Zinciri Erişimi'nde elle oluşturup "Her Zaman Güven" demek gerekmiyor.
-Ölçülen (macOS 27.2): `openssl` ile üretilip `security import -T /usr/bin/codesign` ile alınan,
-güvenilir işaretlenmemiş (`CSSMERR_TP_NOT_TRUSTED`) sertifikayla `codesign` imzalıyor, imza
-`codesign --verify` ve kendi gereksinimini geçiyor, anahtar zinciri onay penceresi çıkmıyor.
-Güven işaretlemek (`security add-trusted-cert`) parola penceresi açtığı için yapılmıyor. Bu yüzden
-`security find-identity` **`-v` olmadan** aranıyor: `-v` yalnızca güvenilenleri listeliyor.
+There is no need to create the certificate by hand in Keychain Access and mark it "Always Trust".
+Measured (macOS 27.2): with a certificate made by `openssl`, imported with
+`security import -T /usr/bin/codesign` and not marked trusted (`CSSMERR_TP_NOT_TRUSTED`), `codesign`
+signs, the signature passes `codesign --verify` and its own requirement, and no keychain prompt appears.
+Marking it trusted (`security add-trusted-cert`) opens a password prompt, so it is not done. That is why
+`security find-identity` is searched **without `-v`**: `-v` lists trusted identities only.
 
-- `/usr/bin/openssl` (LibreSSL): Homebrew'un OpenSSL 3'ü `.p12`'yi `security import`'un okuyamadığı
-  bir şifrelemeyle yazıyor.
-- Sertifika kaybolur ya da yeniden üretilirse parmak izi değişir ve iki izin bir kez yeniden verilir.
+- `/usr/bin/openssl` (LibreSSL): Homebrew's OpenSSL 3 writes the `.p12` with an encryption
+  `security import` cannot read.
+- If the certificate is lost or recreated, its fingerprint changes and both permissions are granted once
+  more.
 
-### İzinler kurulumda, macOS'un kendi pencereleriyle (2026-11-02, ölçüldü)
+### Permissions at install time, through macOS's own prompts (2026-11-02, measured)
 
-`install.sh` son adımda `check` çalıştırıyor; eksik izin için macOS'un kendi penceresi ("Open System
-Settings") çıkıyor ve LiveDrive listeye ekleniyor, kullanıcı yalnızca anahtarı açıyor. Sonra Enter
-bekleyip yeniden denetliyor; hâlâ eksik olanın bölmesini yedek olarak `install.sh` açıyor.
+`install.sh` runs `check` as its last step; for a missing permission macOS shows its own prompt ("Open
+System Settings") and LiveDrive is added to the list, so the user only turns the switch on. It then waits
+for Enter and checks again; as a fallback `install.sh` opens the pane of whatever is still missing.
 
-- *Ekran Kaydı kaydı ikinci istekte oluşuyor (macOS 27.2, `tccd` günlüğü).* İlk
-  `CGRequestScreenCaptureAccess` yalnızca bildiriyor ("does not allow prompting"), listeye kayıt
-  eklemiyor; aynı uygulamanın ikinci isteğinde kayıt oluşuyor. Yalnızca `CGRequestScreenCaptureAccess` kullanan
-  sürümde kayıt bu yüzden ancak ikinci `check`'te çıkıyordu. `check` artık ardından bir ScreenCaptureKit sorgusu da yapıyor: ikinci istek
-  aynı çalıştırmada geliyor, kayıt ilk kurulumda oluşuyor (yeni yolda denendi, kullanıcı listede gördü).
-- *Kimliği değişen uygulama aynı yolda kalırsa kayıt eski kimliğe yazılıyor.* Paket kimliği
-  değiştikten sonra `~/Applications/LiveDrive.app`'in Ekran Kaydı isteği `tccd`'de eski kimlikle
-  kaydedildi; o kimlik artık çözülemediği için Ayarlar listesinde görünmedi. `tccutil reset` eski kaydı
-  silse de yenisi yine eski kimlikle oluştu, yani yol başına bir önbellek var. Aynı uygulama başka bir
-  yoldan çalıştırılınca kayıt doğru kimlikle oluştu; izin kimlik + imzaya bağlı olduğu için asıl yoldaki
-  uygulamaya da geçti. Yalnızca kimlik değiştiren güncellemede yaşanır; oturumu kapatıp açmak da
-  önbelleği temizler (denenmedi).
-- *Ayarlar açıkken eklenen kayıt listede hemen görünmeyebilir* (varsayım, ölçülmedi); deneme
-  sırasında Ayarlar her seferinde kapatılıp açıldı.
-- *Geçici dizindeki uygulama listede çıkmıyor:* LaunchServices onu çözmüyor (`tccutil`
-  "No such bundle identifier"). Deneme uygulamasını `~/Applications` altına koy.
+- *The Screen Recording entry appears on the second request (macOS 27.2, `tccd` log).* The first
+  `CGRequestScreenCaptureAccess` only notifies ("does not allow prompting") and adds no entry to the
+  list; the same app's second request creates it. In the version that used
+  `CGRequestScreenCaptureAccess` alone, the entry therefore appeared only on the second `check`. `check`
+  now follows it with a ScreenCaptureKit query: the second request comes in the same run and the entry
+  exists after the first install (tried from a fresh path; the user saw it in the list).
+- *An app whose bundle id changed but whose path did not gets its entry under the old id.* After the bundle
+  id changed, the Screen Recording request of `~/Applications/LiveDrive.app` was recorded in `tccd` under
+  the old id; since that id no longer resolves, the Settings list did not show it. `tccutil reset`
+  removed the old entry, but the new one was again created under the old id, so there is a per-path
+  cache. Run from another path, the same app got its entry under the right id; since a grant is tied to
+  id + signature, it also covered the app at the original path. This only happens on an update that
+  changes the bundle id; logging out and back in should clear the cache too (not tried).
+- *An entry added while Settings is open may not show in the list right away* (assumption, not
+  measured); during the trials Settings was quit and reopened each time.
+- *An app in a temporary directory does not show in the list:* LaunchServices does not resolve it
+  (`tccutil` "No such bundle identifier"). Put a trial app under `~/Applications`.
 
-### Paket kimliği `io.github.smlblr.LiveDrive` (2026-11-02)
+### Bundle id `io.github.smlblr.LiveDrive` (2026-11-02)
 
-TCC izinleri bu kimliğe bağlı. Değişirse TCC uygulamayı yeni sayar: herkes iki izni yeniden verir ve
-aynı yoldaki eski kimlik Ekran Kaydı kaydını gizleyebilir (yukarıda). Değiştirme.
+TCC grants are tied to this id. If it changes, TCC treats the app as new: everyone grants both permissions
+again, and the old id at the same path can hide the Screen Recording entry (above). Do not change it.
+
+### English only: interface, code, documents and commits (2026-11-04)
+
+The repository is public. Menu labels, notifications, script output, comments, `docs/` and commit
+messages are in English. Only `README.tr.md` is Turkish, as the twin of `README.md`; it changes in the
+same commit. One interface language, not a localised one: two string sets on two platforms would have to
+be kept equal, and the audience reads English.
 
 ## Skill
 
-### Yalnızca Claude Code, yalnızca elle çağrı (2026-10-20)
+### Claude Code only, manual invocation only (2026-10-20)
 
-Eski adı `live-desktop-test`; 2026-11-01'de `live-drive-desktop` oldu.
+Formerly `live-desktop-test`; renamed `live-drive-desktop` on 2026-11-01.
 
-- **Yalnızca Claude Code.** Skill, Bash izin kuralına ve ekran görüntüsünü okuyup odağı doğrulayan
-  bir döngüye dayanıyor; başka ajanlarda ölçülmedi.
-- **`disable-model-invocation: true`.** Gerçek klavye/fare girdisi gönderiyor; model kendi kararıyla
-  başlatmasın, istemeyen proje açıklamasını bile bağlamda taşımasın. `/live-drive-desktop`.
-- **Odak kapısı kodda (2026-11-01).** Her girdi adımından önce etkin pencerenin PID'i, `focus:` ile
-  verilen test sürecinin alt ağacında mı diye bakılıyor; tıklamadan sonra bir kez daha. "Her batch'ten
-  önce ekran görüntüsüyle odağı doğrula" kuralı 2026-10-20'de sohbete `exit` yazılmasını önlemedi.
-  Yön tek: izin verilen sürecin ATALARI kabul edilmiyor, `serve`'ün ataları da `focus:` olarak
-  reddediliyor — test uygulamasının atası sohbetin kendisi. Birden fazla pencere ACTIVE görünürse
-  (kapalı bir tarayıcı penceresi durumu bırakmamıştı) hepsinin izinli olması gerekiyor; yalnızca
-  ilkine bakmak kapıyı yanlış pencereye açabilirdi.
+- **Claude Code only.** The skill relies on a Bash permission rule and on a loop that reads screenshots
+  and verifies focus; it was not measured with other agents.
+- **`disable-model-invocation: true`.** It sends real keyboard and mouse input: the model must not start
+  it on its own, and a project that does not want it should not even carry its description in context.
+  `/live-drive-desktop`.
+- **The focus gate is in code (2026-11-01).** Before every input step, the PID of the active window is
+  checked against the subtree of the test process given with `focus:`; after a click, once more. The
+  rule "verify focus with a screenshot before every batch" did not prevent `exit` being typed into the
+  chat on 2026-10-20. One direction only: ANCESTORS of an allowed process are not accepted, and the
+  ancestors of `serve` are refused as `focus:` — the test app's ancestor is the chat itself. If more
+  than one window reports ACTIVE (a closed browser window had not cleared its state), all of them must
+  be allowed; looking only at the first could open the gate to the wrong window.
 
-### Tek sürücü ve kullanıcı önceliği (2026-11-02, canlı denendi)
+### One driver and user priority (2026-11-02, tried live)
 
-- *Kilit (`~/.cache/live-drive.lock`, `flock`):* kilit yokken ikinci bir `serve` birincinin FIFO'sunu
-  silip yeniden açıyordu; birinci her istekte dosyayı yeniden açtığı için ikisi aynı isteği okuyordu,
-  bir oturumun tuşu öbürünün `focus:` listesiyle denetlenebiliyordu. Artık ikinci `serve`
-  reddediliyor; `send`/`quit` da yalnızca kilidi tutan oturumdan kabul ediliyor. Oturum = en yakın
-  `claude` ata süreci (bir oturumun bütün Bash çağrıları onun altında). Kuyruk yerine ret: saatlerce
-  sessizce bekleyen bir oturum, açıkça reddedilenden kötü. Kilit Python ön yüzünde, macOS de aynı
-  yoldan geçiyor.
-- *Kullanıcı önceliği:* "kullanıyor" = 2 sn içinde en az üç ayrı 0,1 sn diliminde klavye ya da fare
-  girdisi. İlk sürüm (yalnızca adımlardan önce, "son 3 sn'de tek girdi") canlı testte iki yönde de
-  yanıldı: ardışık hızlı adımlarda bakılan pencere ~0'a iniyordu, kullanıcı görülmedi; batch başında
-  tek bir kısa girdi (tıklama, fare sarsıntısı) testi durdurdu. Sahte kullanıcıyla ölçüldü: eski kod
-  40 ms arayla iki olaydan ibaret bir patlamada durdu, yoğun batch ortasındaki 0,6 sn'lik kullanımı
-  kaçırdı; yenisi ilkini yok sayıyor, ikincisini 0,16 sn'de yakalıyor. Boşta kalmasını beklemek
-  yerine açık onay: oturum duraklayıp Ctrl+Alt+Shift+P (macOS ⌃⌥⇧P) istiyor (başlarken "Claude
-  ekranı sürmek istiyor", ortada "Sen kullanıyorsun"). Kısayola basmak da girdi olduğu için
-  sürdürmeden sonra 1 sn bu denetim yapılmıyor. Duraklarken basılı sentetik tuşlar bırakılıyor;
-  yarıda kalan `drag` hata veriyor. Uzun duraklamada `send` 120 sn sonra "batch is waiting" diyor:
-  batch kaybolmuyor, yeniden göndermek iki kez çalıştırırdı.
-- *Girdi yokken duraklatma yok, gösterge "Bekliyor".* Hiç adım göndermeden açık duran bir oturum
-  "Test sürüyor" gösterdi; dokunulduğu hâlde durmadığı için algılama bozuk sanıldı. Oturum açıkken
-  her dokunuşta duraklatmak reddedildi: batch'ler arasında kullanıcı sohbeti okuyup yazıyor, her
-  mesajdan sonra kısayol isterdi ve korunacak bir girdi yoktu. Bunun yerine gösterge batch sırasında
-  "Sürüyor", arada "Bekliyor" yazıyor.
-  - *Beş saniyelik gecikme ve saatli log (2026-11-02, Linux'ta ölçüldü, macOS'a aynı kod yazıldı,
-    Mac'te denenmedi).* Bir clipboard testinde (53 batch, ~18 dk) gösterge hesaplanan sürenin yalnızca
-    %12'sinde "Sürüyor" dedi: Claude testin büyük kısmını `send` dışında yürütüyordu (`coppy`
-    komutuyla pencere açıp kapatmak, `systemctl restart`, ekran kaydı betiği). Gösterge artık son
-    batch'ten 5 sn sonra "Bekliyor"a dönüyor. Duraklatma da yalnızca serve'ün adımlarını durduruyor; bu
-    iki platformda aynı (Swift'te `gate()` aynı yerde bakıyor), Mac'te yaşanmamasının nedeni kod değil,
-    o testlerin her şeyi `send` ile yapması. Kendi komutlarını da durduracak bir adım serve'e
-    keyfi komut çalıştırma yetkisi vermek olurdu; bunun yerine SKILL.md `~/.cache/live-drive.pause`
-    dosyasına bakmayı (`check` duraklatmayı yalnızca `warn` satırı olarak veriyor, son satır yine `all ok`) ve ekrana dokunan işi kısa batch'lerde tutmayı söylüyor (zorlama değil, uyum).
-    `live-drive.out` satırları `HH:MM:SS ` ile başlıyor, böylece bir duraklatma o sırada çalışanla
-    eşleştirilebiliyor; ayrıştıran kod (`send`, Mac'te READY beklemesi) saati atıyor.
-  - *Bekleme adımında da karar (2026-11-02, ortak denemede kullanıcı yakaladı).* "Kullanıyor mu"
-    kararı yalnızca girdi adımlarının başında veriliyordu; `sleep` yalnızca örnekliyordu. Bekleme
-    sırasında oynatılan fare 2 sn sonra unutuluyor, bir sonraki tuşa kadar duraklatma gelmiyordu
-    (ve kullanıcı "Sürüyor" yazısına bakarken hiçbir tepki görmüyordu). `sleep` artık her 0,1 sn'de
-    karar da veriyor (`yield_to_user` / Swift'te `yieldToUser`). Linux'ta sahte kullanıcıyla ölçüldü:
-    sürekli girdi bekleme sırasında 0,4 sn içinde duraklatıyor, kısa sarsıntı yok sayılıyor.
-- *Hazır sinyali.* `live-drive.out` bütün oturumların ortak dosyası; reddedilen `serve` önceki
-  oturumun `READY`'sini orada bırakıyor ve başka bir oturum onu kendi sandı. Satır artık sahibini
-  taşıyor (`READY claude:<pid> serve <pid>`) ve `serve`'ün kendi çıktısına da yazılıyor. Asıl
-  doğrulama ilk `send`: sahibi denetliyor. Kilit yalnızca `send`'den geçeni kapsıyor; uygulama açmak
-  ya da D-Bus ile pencere açtırmak kapsam dışı, o yüzden SKILL.md bunları ilk `send` başarılı olana
-  kadar yasaklıyor.
+- *Lock (`~/.cache/live-drive.lock`, `flock`):* without a lock, a second `serve` deleted and reopened
+  the first one's FIFO; since the first reopened the file for every request, both read the same request
+  and one session's key could be checked against the other's `focus:` list. Now a second `serve` is
+  refused, and `send`/`quit` are accepted only from the session that holds the lock. Session = the
+  nearest `claude` ancestor process (all Bash calls of a session run under it). Refusal rather than a
+  queue: a session that waits silently for hours is worse than one refused openly. The lock is in the
+  Python front end, and macOS goes through the same path.
+- *User priority:* "using it" = keyboard or mouse input in at least three separate 0.1 s slices within
+  2 s. The first version (only before steps, "one input in the last 3 s") was wrong both ways in a live
+  test: during fast consecutive steps the window it looked at shrank to ~0 and the user was not seen;
+  a single short input at the start of a batch (a click, a bumped mouse) stopped the test. Measured with
+  a fake user: the old code stopped on a burst of two events 40 ms apart and missed 0.6 s of use in the
+  middle of a busy batch; the new one ignores the first and catches the second in 0.16 s. Explicit
+  approval instead of waiting for idle: the session pauses and asks for Ctrl+Alt+Shift+P (macOS ⌃⌥⇧P)
+  ("Claude wants to drive the screen" at the start, "You're using it" in the middle). Pressing the
+  shortcut is input too, so the check is off for 1 s after resuming. Held synthetic keys are released on
+  a pause; an interrupted `drag` fails. During a long pause `send` says "batch is waiting" after 120 s:
+  the batch is not lost, and sending it again would run it twice.
+- *No pause without input; the indicator says "Idle".* A session left open without sending any step
+  showed "Test running"; the user touched the machine, nothing paused, and took detection for broken.
+  Pausing on every touch while a session is open was rejected: between batches the user reads and
+  writes in the chat, would need the shortcut after every message, and there was no input to protect.
+  Instead the indicator says "Driving" during a batch and "Idle" in between.
+  - *Five-second delay and timestamped log (2026-11-02, measured on Linux; the same code written for
+    macOS, not tried on a Mac).* In a clipboard test (53 batches, ~18 min) the indicator said "Driving"
+    for only 12 % of the computed time: Claude ran most of the test outside `send` (opening and closing
+    windows with the `coppy` command, `systemctl restart`, a screen recording script). The indicator now
+    turns "Idle" 5 s after the last batch. Pausing likewise stops only serve's steps; this is the same on
+    both platforms (in Swift `gate()` checks in the same place), and the reason it was not seen on a Mac
+    is not the code but that those tests did everything through `send`. A step that also stopped
+    Claude's own commands would give serve the power to run arbitrary commands; instead SKILL.md says to
+    look at `~/.cache/live-drive.pause` (`check` reports a pause only as a `warn` line, its last line
+    is still `all ok`) and to keep work that touches the screen in short batches (compliance, not
+    enforcement). Lines in `live-drive.out` start with `HH:MM:SS `, so a pause can be matched to what
+    was running at the time; the parsing code (`send`, the READY wait on macOS) strips the time.
+  - *A decision in wait steps too (2026-11-02, caught by the user in a joint trial).* The "is the user
+    using it" decision was made only at the start of input steps; `sleep` only sampled. A mouse moved
+    during a wait was forgotten after 2 s and no pause came until the next key (while the user watched
+    "Driving" and saw no reaction). `sleep` now also decides every 0.1 s (`yield_to_user` / in Swift
+    `yieldToUser`). Measured on Linux with a fake user: continuous input during a wait pauses within
+    0.4 s, a short bump is ignored.
+- *Ready signal.* `live-drive.out` is shared by all sessions; a refused `serve` leaves the previous
+  session's `READY` there and another session took it for its own. The line now carries its owner
+  (`READY claude:<pid> serve <pid>`) and is also written to `serve`'s own output. The real check is the
+  first `send`: it verifies the owner. The lock covers only what goes through `send`; opening an app or
+  having D-Bus open a window is outside it, so SKILL.md forbids those until the first `send` succeeds.
 
-## macOS: Swift yardımcısı LiveDrive.app (2026-11-01, canlı denendi)
+## macOS: the Swift helper LiveDrive.app (2026-11-01, tried live)
 
-- *Neden yalnızca açık arayüz:* CGEvent, ScreenCaptureKit, AXUIElement, sysctl, Carbon hot key,
-  NSStatusItem, UserNotifications. SkyLight gibi özel arayüzler (arka planda girdi) her macOS
-  güncellemesinde sessizce kırılabilir; arka planda girdi ve sanal ekran kapsam dışı.
-- *Neden `.app` ve `open` ile başlatma:* TCC izni "sorumlu süreç"e yazılır; terminalden ya da
-  Claude'dan doğrudan çalışan ikilinin izni onu başlatan uygulamaya gider. macOS 26.1'den beri komut
-  satırı ikilisi Erişilebilirlik listesine eklenemiyor. `live-drive.py` ön yüz olarak kalıyor (tek
-  izin kuralı, tek komut biçimi).
-- *`--deny`:* `open` ile başlayan uygulamanın ebeveyni launchd; yardımcı kendi atalarından sohbeti
-  bulamaz. Ön yüz kendi ata zincirini (Claude uygulaması dahil, ölçüldü) geçiriyor; bu süreçler
-  `focus:` olarak reddediliyor ve öndeyse girdi `focus:any` altında bile gitmiyor. `--parent`: ön yüz
-  ölünce yardımcı da kapanıyor (`open -W` ölse de uygulama yaşardı).
-- *Klavye `postToPid` ile, kapıdan geçen sürece:* kapı denetimiyle olay arasındaki milisaniyede odak
-  değişse de tuş izinli sürece gidiyor; sistemin genel tuş durumu etkilenmiyor (basılı `down:shift`
-  kullanıcının klavyesine sızmadı, ölçüldü). TextEdit ve VS Code (Electron) yazıyor. Metin
-  `keyboardSetUnicodeString` ile gidiyor: düzenden bağımsız, €/漢/emoji dahil düşen yok.
-- *Kullanıcı önceliği: sayaç değil olay musluğu (2026-11-02).* `CGEventSource.secondsSinceLastEventType`
-  bizim gönderdiğimiz fare/kaydırma olaylarıyla da sıfırlanıyor, ama 0,1–0,5 sn geç görünüyor ve olayı
-  0,02–0,42 sn erken tarihliyor (7/7 ölçüm); "bizim son olayımızdan yeni" karşılaştırması bununla
-  yanlış olurdu. Yerine yalnızca dinleyen bir `CGEvent` musluğu: her olayın
-  `eventSourceUnixProcessID`'si var, bizimkiler LiveDrive'ın pid'ini taşıyor (11/11), Erişilebilirlik
-  izni yetiyor. Musluk yalnızca "kullanıcının son girdi anı"nı tutuyor, liste her 0,1 sn'de
-  örnekleniyor: olay başına saymak 0,16 sn'lik bir dürtmeyi kullanım saydı.
-- *Güvenlik:* yardımcı çalıştığı sürece kullanıcının herhangi bir süreci FIFO'ya yazıp yardımcının
-  izinleriyle girdi gönderebilir. Linux'ta Mutter D-Bus zaten herkese açık; macOS'ta yeni bir yetki.
-  Sınırlar: yalnızca test süresince çalışır (daemon değil), FIFO 0600 ve açılışta `lstat` ile
-  doğrulanır, odak kapısı girdiyi `focus:` süreçleriyle sınırlar.
-- *Ölçülenler (macOS 27.2, Apple Silicon):* nokta çözünürlüğündeki görüntü (1470x956) okunuyor; doğal
-  kaydırma sentetik kaydırmayı ters çevirmiyor; tıklamadan sonraki 0,15 sn odak denetimine yetiyor;
-  ilk ekran görüntüsünde ayrıca "private window picker" izni soruluyor; Carbon kısayolları Türkçe
-  düzende karakterle (s/p) kaydediliyor.
+- *Why public APIs only:* CGEvent, ScreenCaptureKit, AXUIElement, sysctl, Carbon hot keys,
+  NSStatusItem, UserNotifications. Private APIs such as SkyLight (background input) can break silently
+  with any macOS update; background input and a virtual display are out of scope.
+- *Why an `.app` started with `open`:* a TCC grant is recorded for the "responsible process"; a binary
+  run directly from a terminal or from Claude has its grants charged to the app that started it. Since
+  macOS 26.1 a command line binary cannot be added to the Accessibility list. `live-drive.py` stays the
+  front end (one permission rule, one command form).
+- *`--deny`:* an app started with `open` has launchd as its parent; the helper cannot find the chat
+  among its own ancestors. The front end passes its own ancestor chain (the Claude app included,
+  measured); these processes are refused as `focus:`, and when one is in front no input goes even under
+  `focus:any`. `--parent`: when the front end dies the helper exits too (if `open -W` died, the app
+  would live on).
+- *Keys with `postToPid`, to the process that passed the gate:* even if focus changes in the millisecond
+  between the gate check and the event, the key goes to the allowed process; the system's global key
+  state is not touched (a held `down:shift` did not leak into the user's keyboard, measured). TextEdit and
+  VS Code (Electron) type. Text travels with `keyboardSetUnicodeString`: layout independent, nothing
+  dropped, €/漢/emoji included.
+- *User priority: an event tap, not a counter (2026-11-02).*
+  `CGEventSource.secondsSinceLastEventType` is reset by our own mouse/scroll events too, but shows up
+  0.1–0.5 s late and dates the event 0.02–0.42 s early (7/7 measurements); a "newer than our last event"
+  comparison would be wrong with it. Instead a listen-only `CGEvent` tap: every event carries
+  `eventSourceUnixProcessID`, ours carry LiveDrive's pid (11/11), and the Accessibility grant is enough.
+  The tap keeps only "the user's last input time", and the list is sampled every 0.1 s: counting per
+  event took a 0.16 s nudge for use.
+- *Security:* while the helper runs, any process of the user can write to the FIFO and send input with
+  the helper's grants. On Linux Mutter's D-Bus is open to everyone already; on macOS this is a new power.
+  Limits: it runs only during a test (no daemon), the FIFO is 0600 and checked with `lstat` when opened,
+  and the focus gate limits input to the `focus:` processes.
+- *Measured (macOS 27.2, Apple Silicon):* the image is read at point resolution (1470x956); natural
+  scrolling does not invert synthetic scrolling; 0.15 s after a click is enough for the focus check; the
+  first screenshot also asks for the "private window picker" permission; Carbon hot keys register by
+  character (s/p) on a Turkish layout.
 
 ## Linux: GNOME Wayland
 
-- *Mutter RemoteDesktop + ScreenCast, D-Bus üzerinden.* Ek izin penceresi ya da derleme yok.
-- *Karakterler `xkb_utf32_to_keysym` ile çevriliyor (2026-11-01, canlı denendi).* Mutter tuşu etkin
-  düzende arıyor ve düzen ğ/ş/ı'yı eski keysym'leriyle (`gbreve` 0x2bb) tanımlıyor; Unicode biçimi
-  (0x100011f) sessizce düşüyordu. Düzende olmayan karakter (漢) yine düşüyor; hata dönmüyor.
-- *`focus:any` sohbeti yine reddediyor (2026-11-02):* etkin pencerenin PID'i `serve`'ün ata
-  zincirindeyse (Claude uygulaması orada) girdi gitmiyor; macOS'taki `--deny` ile aynı kural.
-- *Uzun `type:` ve `drag` sırasında 0,2 sn'de bir yeniden denetim:* Mutter'da tuşu bir sürece
-  yollamanın yolu yok, tuş öndeki pencereye gidiyor. Her karakterde sormak pahalı (AT-SPI sorgusu
-  ~56 ms); 0,2 sn'de bir sormak, yazma ortasında öne gelen pencereye ölçülen kaçağı 1 karaktere
-  indirdi. Kaçak sıfır değil; `SKILL.md` bunu söylüyor.
-- *Kullanıcı önceliği:* Mutter IdleMonitor son girdiden geçen süreyi veriyor; bizim sentetik
-  girdimiz de onu sıfırlıyor (11 sn → 0,1 sn), hem de D-Bus çağrısı dönmeden (40 denemede en geç
-  +0,1 ms). Bu yüzden zamanı sorgudan *önce* alınan ve bizim son olayımızdan yeni olan girdi
-  kullanıcının. Sayaç her 0,1 sn'de örnekleniyor.
-- *Duraklat/durdur bildirimi:* GNOME'un yerleşik göstergesinde duraklatma durumu yok; `serve` bir
-  bildirim gösteriyor: duraklatılmışken kritik (kapanana kadar ekranda), sürdürme ve durdurmada kısa.
-  Oturum biterken `.pause` da siliniyor; kalırsa sonraki oturum duraklatılmış başlıyordu.
-- *Üst çubuk simgesi: StatusNotifierItem + DBusMenu, Gio ile elle, paketsiz:*
-  - GNOME Shell eklentisi değil: eklentiler GNOME sürümleriyle kırılıyor (45'te tümü), Wayland'de
-    yeni eklenti oturumu yeniden açmadan yüklenmiyor.
-  - Kütüphane değil: `libayatana-appindicator` "deprecated" basıyor ve GTK3 çekiyor; halefi
-    `libayatana-appindicator-glib` menüyü `org.gtk.Menus` olarak yayınlıyor, Ubuntu'nun
-    `ubuntu-appindicators` eklentisi yalnızca `com.canonical.dbusmenu` okuyor — menü hiç görünmedi.
-  - Protokollerin kendisi (SNI, DBusMenu) ~150 satır, bağımlılık yok. Watcher yoksa (eklenti kapalı)
-    simge çıkmıyor, test çalışmaya devam ediyor. `Activate` yöntemi bilerek yok: eklenti o zaman sol
-    tıkta menüyü açıyor.
-- *Durdur/duraklat kısayolları komutlarına göre aranıyor (2026-11-02).* GNOME özel kısayolları bir
-  liste + yol başına ayar. Başka bir kurulum betiği listeyi baştan yazıyorsa `install.sh`'nin
-  eklediği yolları düşürür; o betik kısayolları kendi listesine koymalı. `install.sh` aynı komutla
-  tanımlı bir kısayol bulursa (yolu ne olursa olsun) yenisini eklemiyor, çift tanım olmuyor.
-- *KDE ve X11 kapsam dışı.* 2026-11-01 araştırması: KDE portalı `persist_mode=2` ve sabit uygulama
-  kimliğiyle tek onayla çalışıyor; iş açık.
+- *Mutter RemoteDesktop + ScreenCast over D-Bus.* No extra permission prompt and nothing to build.
+- *Characters go through `xkb_utf32_to_keysym` (2026-11-01, tried live).* Mutter looks the key up in the
+  active layout, and the layout defines ğ/ş/ı by their legacy keysyms (`gbreve` 0x2bb); the Unicode form
+  (0x100011f) was dropped silently. A character missing from the layout (漢) is still dropped; no error
+  comes back.
+- *`focus:any` still refuses the chat (2026-11-02):* if the active window's PID is in `serve`'s ancestor
+  chain (the Claude app is there), no input goes; the same rule as `--deny` on macOS.
+- *A recheck every 0.2 s during a long `type:` or `drag`:* Mutter has no way to send a key to a process;
+  the key goes to the window in front. Asking on every character is costly (an AT-SPI query takes ~56 ms);
+  asking every 0.2 s brought the measured leak to a window that comes to the front mid-typing down to 1
+  character. The leak is not zero; `SKILL.md` says so.
+- *User priority:* Mutter's IdleMonitor gives the time since the last input; our synthetic input resets
+  it too (11 s → 0.1 s), even before the D-Bus call returns (at most +0.1 ms in 40 tries). So input newer
+  than our last event, with the time taken *before* the query, is the user's. The counter is sampled every
+  0.1 s.
+- *Pause/stop notices:* GNOME's built-in indicator has no pause state; `serve` shows a notification:
+  critical while paused (it stays until closed), short on resume and stop. The `.pause` file is removed
+  when a session ends; if it stayed, the next session started paused.
+- *Top-bar icon: StatusNotifierItem + DBusMenu, by hand with Gio, no package:*
+  - Not a GNOME Shell extension: extensions break with GNOME versions (all of them at 45), and on Wayland
+    a new extension does not load without logging in again.
+  - Not a library: `libayatana-appindicator` prints "deprecated" and pulls in GTK3; its successor
+    `libayatana-appindicator-glib` publishes the menu as `org.gtk.Menus`, while Ubuntu's
+    `ubuntu-appindicators` extension reads only `com.canonical.dbusmenu` — the menu never appeared.
+  - The protocols themselves (SNI, DBusMenu) take ~150 lines and no dependency. Without a watcher (the
+    extension off) there is no icon and the test runs on. The `Activate` method is left out on purpose:
+    with it the extension opens the menu on left click.
+- *Stop/pause shortcuts are matched by command (2026-11-02).* GNOME custom shortcuts are a list plus
+  settings per path. Another setup script that rewrites the list from scratch drops the paths
+  `install.sh` added; that script should put the shortcuts in its own list. When `install.sh` finds a
+  shortcut with the same command (whatever its path), it adds none, so there is no duplicate.
+- *KDE and X11 are out of scope.* 2026-11-01 research: the KDE portal works with a single approval using
+  `persist_mode=2` and a fixed app id; the work is open.

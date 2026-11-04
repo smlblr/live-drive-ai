@@ -19,8 +19,8 @@ Gerçek girdi gönderen bir araç, yanlış pencereye yazarsa zarar verebilir. B
 - **Odak kapısı.** Her tuş ve tıklamadan önce öndeki pencerenin, Claude'un açtığı test uygulamasına ait
   olup olmadığına bakılır. Değilse batch durur ve hangi pencereyi bulduğunu söyler. Claude'un kendi
   sohbet penceresine hiçbir koşulda girdi gitmez.
-- **Önce sen.** Test sırasında klavyeyi ya da fareyi kullanmaya başlarsan test duraklar ("Sen
-  kullanıyorsun") ve sen kısayolla sürdürene kadar bekler. Tek bir tıklama ya da fare sarsıntısı
+- **Önce sen.** Test sırasında klavyeyi ya da fareyi kullanmaya başlarsan test duraklar ("You're
+  using it") ve sen kısayolla sürdürene kadar bekler. Tek bir tıklama ya da fare sarsıntısı
   sayılmaz; birkaç kısa anda tekrarlanan girdi sayılır.
 - **Tek sürücü.** Aynı anda yalnızca bir Claude oturumu ekranı sürebilir; ikincisi reddedilir.
 - **Her an durdurabilirsin** (aşağıdaki kısayollar ya da menü).
@@ -95,20 +95,20 @@ sorar).
 
 Claude başlamadan önce ne test edeceğini, kaç adım süreceğini ve hangi pencereleri açacağını söyler.
 Sonra adımları kısa batch'ler hâlinde gönderir ve arada
-ilerlemeyi yazar. Bitince "test bitti" der, ekran görüntülerinin yerini ve neyin geçip neyin kaldığını
+ilerlemeyi yazar. Bitince testin bittiğini söyler, ekran görüntülerinin yerini ve neyin geçip neyin kaldığını
 raporlar, açtığı pencereleri kapatır.
 
 ### Durdurmak ve duraklatmak
 
 | | macOS | Linux |
 |---|---|---|
-| Durdur | ⌃⌥⇧S ya da menü çubuğu → LiveDrive → Durdur | Ctrl+Alt+Shift+S, üst çubuk menüsü → Durdur ya da turuncu göstergedeki ■ |
-| Duraklat / sürdür | ⌃⌥⇧P ya da menü → Duraklat/Sürdür | Ctrl+Alt+Shift+P ya da üst çubuk menüsü |
+| Durdur | ⌃⌥⇧S ya da menü çubuğu → LiveDrive → Stop | Ctrl+Alt+Shift+S, üst çubuk menüsü → Stop ya da turuncu göstergedeki ■ |
+| Duraklat / sürdür | ⌃⌥⇧P ya da menü → Pause/Resume | Ctrl+Alt+Shift+P ya da üst çubuk menüsü |
 
-Menüdeki yazı durumu gösterir: **Sürüyor** (Claude şu an girdi gönderiyor), **Bekliyor** (batch'ler
-arası; dokunman bir şeyi durdurmaz), **Duraklatıldı** ya da **Sen kullanıyorsun** (⏸, sürdürmeni
-bekliyor). Test başlarken sen makineyi kullanıyorsan **Onayını bekliyor** olur, "Claude ekranı sürmek
-istiyor" bildirimi çıkar ve menüdeki Başlat'ı ya da sürdür kısayolunu bekler.
+Menüdeki yazı durumu gösterir (arayüz İngilizce): **Driving** (Claude şu an girdi gönderiyor),
+**Idle** (batch'ler arası; dokunman bir şeyi durdurmaz), **Paused** ya da **You're using it** (⏸,
+sürdürmeni bekliyor). Test başlarken sen makineyi kullanıyorsan **Waiting for you** olur, "Claude wants
+to drive the screen" bildirimi çıkar ve menüdeki Start'ı ya da sürdür kısayolunu bekler.
 
 ### Seni nasıl fark eder
 
@@ -130,7 +130,7 @@ Tek kısa tıklama testi durdurmaz; tıklama odağı başka bir pencereye götü
 girdiyi yine durdurur. Yanlış duraksa `~/.cache/live-drive.out` içindeki
 `user input: N events over X s, last Y s ago` satırı neyin durdurduğunu gösterir. Bu dosyadaki her satır saatle (`HH:MM:SS`) başlar.
 
-**Üst çubuk durumu:** "Sürüyor" bir batch çalışırken ve bittikten sonra 5 sn boyunca görünür; "Bekliyor", Claude 5 sn'dir bir şey göndermiyor, dokunman bir şeyi duraklatmaz demektir. Duraklatma ve durdurma live-drive'ın kendi adımlarına etki eder: Claude'un batch'ler arasında kendi çalıştırdığı komut (D-Bus ile pencere açmak, uygulamayı yeniden başlatmak) duraklatmayla durmaz; bu yüzden SKILL.md Claude'a bu tür işi kısa batch'lerde tutmasını ve önce duraklatma olup olmadığına bakmasını söylüyor.
+**Üst çubuk durumu:** "Driving" bir batch çalışırken ve bittikten sonra 5 sn boyunca görünür; "Idle", Claude 5 sn'dir bir şey göndermiyor, dokunman bir şeyi duraklatmaz demektir. Duraklatma ve durdurma live-drive'ın kendi adımlarına etki eder: Claude'un batch'ler arasında kendi çalıştırdığı komut (D-Bus ile pencere açmak, uygulamayı yeniden başlatmak) duraklatmayla durmaz; bu yüzden SKILL.md Claude'a bu tür işi kısa batch'lerde tutmasını ve önce duraklatma olup olmadığına bakmasını söylüyor.
 
 ## Güncelleme
 

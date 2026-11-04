@@ -1,5 +1,5 @@
-// LiveDrive.app ikonunu çizer: swift icon.swift ÇIKIŞ.iconset
-// İkon repoda ikili dosya olarak durmasın diye derlemede üretiliyor (build.sh).
+// Draws the LiveDrive.app icon: swift icon.swift OUT.iconset
+// Generated at build time (build.sh) so the repository holds no binary icon.
 import AppKit
 
 let out = CommandLine.arguments[1]
@@ -12,7 +12,7 @@ func render(_ px: Int) -> Data {
     NSGraphicsContext.saveGraphicsState()
     NSGraphicsContext.current = NSGraphicsContext(bitmapImageRep: rep)
     let s = CGFloat(px)
-    // macOS ikon ızgarası: 1024'lük tuvalde 824'lük yuvarlak kare, köşe yarıçapı ~185.
+    // macOS icon grid: an 824 rounded square on a 1024 canvas, corner radius ~185.
     let inset = s * 100 / 1024
     let rect = NSRect(x: inset, y: inset, width: s - 2 * inset, height: s - 2 * inset)
     let shape = NSBezierPath(roundedRect: rect, xRadius: s * 185 / 1024, yRadius: s * 185 / 1024)
